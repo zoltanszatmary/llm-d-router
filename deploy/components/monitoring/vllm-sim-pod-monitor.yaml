@@ -8,7 +8,17 @@ spec:
   selector:
     matchLabels:
       app: ${POOL_NAME}
+  podTargetLabels:
+    - app
+    - llm-d.ai/component
+    - llm-d.ai/role
   podMetricsEndpoints:
-  - port: sidecar-http
-    interval: 15s
-    path: /metrics
+    - port: http
+      interval: 15s
+      path: /metrics
+    - port: prefill-http
+      interval: 15s
+      path: /metrics
+    - port: sidecar-http
+      interval: 15s
+      path: /metrics

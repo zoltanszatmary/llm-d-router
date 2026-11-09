@@ -21,7 +21,7 @@ spec:
         args:
         - "--model=${MODEL_NAME}"
         - "--port=${VLLM_RENDER_PORT}"
-        - "--mode=echo"
+        - "--mode=random"
         ports:
         - name: http
           containerPort: ${VLLM_RENDER_PORT}
@@ -62,4 +62,5 @@ spec:
     protocol: TCP
     port: ${VLLM_RENDER_PORT}
     targetPort: ${VLLM_RENDER_PORT}
-  type: ClusterIP
+    nodePort: 30082
+  type: NodePort

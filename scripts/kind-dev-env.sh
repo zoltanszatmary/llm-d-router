@@ -84,6 +84,9 @@ export VLLM_RENDER_PORT="${VLLM_RENDER_PORT:-8082}"
 export VLLM_RENDER_URL="${VLLM_RENDER_URL:-http://vllm-render:${VLLM_RENDER_PORT}}"
 export VLLM_RENDER_MAX_MODEL_LEN="${VLLM_RENDER_MAX_MODEL_LEN:-131072}"
 
+# Set the host port to map to the rendering vLLM NodePort (30082)
+: "${VLLM_RENDER_HOST_PORT:=30082}"
+
 # Set the inference pool name for the deployment
 export POOL_NAME="${POOL_NAME:-${MODEL_NAME_SAFE}-inference-pool}"
 
@@ -126,6 +129,10 @@ export KV_CACHE_ENABLED="${KV_CACHE_ENABLED:-false}"
 export VLLM_REPLICA_COUNT_E="${VLLM_REPLICA_COUNT_E:-1}"
 export VLLM_REPLICA_COUNT_P="${VLLM_REPLICA_COUNT_P:-1}"
 export VLLM_REPLICA_COUNT_D="${VLLM_REPLICA_COUNT_D:-1}"
+
+# Host directory mounted into the kind node at /data for simulator data
+export DATA_DIR="${DATA_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)/data}"
+export SIM_DATASET_PATH="${SIM_DATASET_PATH:-}"
 
 # Data Parallel size
 export VLLM_DATA_PARALLEL_SIZE="${VLLM_DATA_PARALLEL_SIZE:-1}"
@@ -269,6 +276,10 @@ else
     protocol: TCP"
     fi
 
+    EXTRA_PORT_MAPPINGS="${EXTRA_PORT_MAPPINGS}${NEW_LINE}  - containerPort: ${VLLM_RENDER_PORT}
+    hostPort: ${VLLM_RENDER_HOST_PORT}
+    protocol: TCP"
+
     kind create cluster --name "${CLUSTER_NAME}" --config - << EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -277,6 +288,10 @@ nodes:
   # Pin to Kubernetes 1.31+ for Gateway API v1.5.1 compatibility
   # (requires isIP() CEL function and ValidatingAdmissionPolicy)
   image: kindest/node:v1.31.12
+  extraMounts:
+  - hostPath: ${DATA_DIR}
+    containerPath: /data
+    readOnly: true
   extraPortMappings:
   - containerPort: 30080
     hostPort: ${GATEWAY_HOST_PORT}
@@ -459,6 +474,32 @@ kubectl kustomize --enable-helm ${KUSTOMIZE_DIR} \
     { print }
   ' \
   | kubectl --context ${KUBE_CONTEXT} apply -f -
+
+for vllm in "vllm-d" "vllm-p"; do
+  kubectl --context ${KUBE_CONTEXT} -n ${NAMESPACE} patch deployment "$vllm" --type=strategic -p '{
+    "spec": {
+      "template": {
+        "spec": {
+          "containers": [{
+            "name": "vllm",
+            "volumeMounts": [{
+              "name": "data",
+              "mountPath": "/data",
+              "readOnly": true
+            }]
+          }],
+          "volumes": [{
+            "name": "data",
+            "hostPath": {
+              "path": "/data",
+              "type": "Directory"
+            }
+          }]
+        }
+      }
+    }
+  }'
+done
 
 # ------------------------------------------------------------------------------
 # Check & Verify
