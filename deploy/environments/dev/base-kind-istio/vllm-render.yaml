@@ -60,8 +60,14 @@ spec:
         - name: model-cache
           mountPath: /root/.cache/huggingface
       volumes:
+      # Backed by the host HuggingFace cache mounted onto the kind node at
+      # /hf-cache, so the render tokenizer is not re-downloaded on every start.
+      # DirectoryOrCreate tolerates a cold cache: the node creates the path if
+      # the host cache was empty. kind-dev-env.sh wires the host-to-node mount.
       - name: model-cache
-        emptyDir: {}
+        hostPath:
+          path: /hf-cache
+          type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
@@ -77,4 +83,5 @@ spec:
     protocol: TCP
     port: ${VLLM_RENDER_PORT}
     targetPort: ${VLLM_RENDER_PORT}
-  type: ClusterIP
+    nodePort: 30082
+  type: NodePort

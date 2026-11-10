@@ -134,6 +134,10 @@ export VLLM_REPLICA_COUNT_D="${VLLM_REPLICA_COUNT_D:-1}"
 export DATA_DIR="${DATA_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)/data}"
 export SIM_DATASET_PATH="${SIM_DATASET_PATH:-}"
 
+# Host HuggingFace cache mounted into the kind node at /hf-cache and from there
+# into the render pod, so the render tokenizer is not re-downloaded every start.
+export HF_CACHE_DIR="${HF_CACHE_DIR:-${HOME}/.cache/huggingface}"
+
 # Data Parallel size
 export VLLM_DATA_PARALLEL_SIZE="${VLLM_DATA_PARALLEL_SIZE:-1}"
 
@@ -276,7 +280,7 @@ else
     protocol: TCP"
     fi
 
-    EXTRA_PORT_MAPPINGS="${EXTRA_PORT_MAPPINGS}${NEW_LINE}  - containerPort: ${VLLM_RENDER_PORT}
+    EXTRA_PORT_MAPPINGS="${EXTRA_PORT_MAPPINGS}${NEW_LINE}  - containerPort: 30082
     hostPort: ${VLLM_RENDER_HOST_PORT}
     protocol: TCP"
 
@@ -292,6 +296,8 @@ nodes:
   - hostPath: ${DATA_DIR}
     containerPath: /data
     readOnly: true
+  - hostPath: ${HF_CACHE_DIR}
+    containerPath: /hf-cache
   extraPortMappings:
   - containerPort: 30080
     hostPort: ${GATEWAY_HOST_PORT}
@@ -455,11 +461,18 @@ kubectl kustomize --enable-helm ${KUSTOMIZE_DIR} \
   ${KV_CONNECTOR_TYPE} ${EC_CONNECTOR_TYPE} ${CONNECTOR_TYPE} ${KV_CACHE_ENABLED} ${HF_TOKEN} ${VLLM_SIM_MODE} \
   ${DECODE_ROLE} ${VLLM_EXTRA_ARGS_E} ${VLLM_EXTRA_ARGS_P} ${VLLM_EXTRA_ARGS_D}' \
   | awk '
-    /^[[:space:]]*-[[:space:]]+".*"[[:space:]]*$/ {
+    # Split a YAML sequence item holding a flag string into one item per flag.
+    # kustomize emits args unquoted (- --flag=value) and drops surrounding
+    # quotes it considers unneeded, so match both the quoted and unquoted forms.
+    # A VLLM_EXTRA_ARGS_* value expands to several " --"-separated flags in a
+    # single item; an empty value expands to an empty item that must be dropped.
+    /^[[:space:]]*-[[:space:]]+".*"[[:space:]]*$/ || /^[[:space:]]*-[[:space:]]+--.*$/ || /^[[:space:]]*-[[:space:]]*$/ {
       match($0, /^[[:space:]]*/); indent = substr($0, 1, RLENGTH)
       content = $0
-      sub(/^[[:space:]]*-[[:space:]]+"/, "", content)
+      sub(/^[[:space:]]*-[[:space:]]*/, "", content)
+      sub(/^"/, "", content)
       sub(/"[[:space:]]*$/, "", content)
+      sub(/[[:space:]]*$/, "", content)
       if (content == "") { next }
       if (substr(content, 1, 2) == "--") {
         n = split(content, flags, " --")
