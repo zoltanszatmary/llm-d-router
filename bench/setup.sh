@@ -3,6 +3,8 @@
 # Start Kind development cluster
 PROM_ENABLED=true \
 DISAGG_P=true \
+VLLM_REPLICA_COUNT_P=1 \
+VLLM_REPLICA_COUNT_D=2 \
 KV_CACHE_ENABLED=true \
 DATA_DIR="${HOME}/llm-d-router/data" \
 VLLM_SIM_MODE=random \
