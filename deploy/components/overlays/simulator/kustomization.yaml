@@ -40,3 +40,29 @@ patches:
     - op: add
       path: /spec/template/spec/containers/0/args/4
       value: "--zmq-endpoint=tcp://${EPP_NAME}.${NAMESPACE}.svc.cluster.local:5557"
+# --- Prefill deployment (vllm-p) ---
+# The prefill pod processes the prompt prefix, so it must run the same KV-cache
+# and ZMQ publishing as decode for the precise-prefix-cache index to learn the
+# prefix in a P/D topology. The sim runs mode-dependent generation on prefill
+# requests too (only the finish reason is relabeled for remote decode), so
+# --mode is set for parity with decode rather than relying on the sim default.
+# vllm is container 0 (no initContainers); args are prepended at index 0.
+- target:
+    kind: Deployment
+    name: vllm-p
+  patch: |
+    - op: add
+      path: /spec/template/spec/containers/0/args/0
+      value: "--mode=${VLLM_SIM_MODE}"
+    - op: add
+      path: /spec/template/spec/containers/0/args/1
+      value: "--enable-kvcache=${KV_CACHE_ENABLED}"
+    - op: add
+      path: /spec/template/spec/containers/0/args/2
+      value: "--kv-cache-size=1024"
+    - op: add
+      path: /spec/template/spec/containers/0/args/3
+      value: "--block-size=16"
+    - op: add
+      path: /spec/template/spec/containers/0/args/4
+      value: "--zmq-endpoint=tcp://${EPP_NAME}.${NAMESPACE}.svc.cluster.local:5557"

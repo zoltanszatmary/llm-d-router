@@ -85,6 +85,11 @@ spec:
         env:
         - name: PORT
           value: "8000"
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
         - name: POD_NAME
           valueFrom:
             fieldRef:

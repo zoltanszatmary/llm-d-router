@@ -2,6 +2,7 @@
 
 # Start Kind development cluster
 PROM_ENABLED=true \
+VLLM_SIMULATOR_TAG=v1.1.0 \
 DISAGG_P=true \
 VLLM_REPLICA_COUNT_P=1 \
 VLLM_REPLICA_COUNT_D=2 \
