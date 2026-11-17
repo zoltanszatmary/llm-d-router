@@ -180,16 +180,19 @@ else
   export EC_CONNECTOR_TYPE="${EC_CONNECTOR_TYPE:-}"
 fi
 
-# Determine EPP config file based on disaggregation flags
-# KV cache and data parallel are independent options that work with any mode
-if [ "${KV_CACHE_ENABLED}" == "true" ]; then
-  DEFAULT_EPP_CONFIG="deploy/config/sim-epp-kvcache-config.yaml"
-elif [ "${DISAGG_E}" == "true" ] && [ "${DISAGG_P}" == "true" ]; then
+# Determine EPP config file based on disaggregation and KV-cache flags.
+# DISAGG_P with KV_CACHE_ENABLED selects the combined P/D + precise-KV-cache
+# config; the E branches take precedence since that config has no encode stage.
+if [ "${DISAGG_E}" == "true" ] && [ "${DISAGG_P}" == "true" ]; then
   DEFAULT_EPP_CONFIG="deploy/config/sim-e-p-d-epp-config.yaml"
 elif [ "${DISAGG_E}" == "true" ]; then
   DEFAULT_EPP_CONFIG="deploy/config/sim-e-pd-epp-config.yaml"
+elif [ "${DISAGG_P}" == "true" ] && [ "${KV_CACHE_ENABLED}" == "true" ]; then
+  DEFAULT_EPP_CONFIG="deploy/config/sim-pd-kvcache-epp-config.yaml"
 elif [ "${DISAGG_P}" == "true" ]; then
   DEFAULT_EPP_CONFIG="deploy/config/sim-pd-epp-config.yaml"
+elif [ "${KV_CACHE_ENABLED}" == "true" ]; then
+  DEFAULT_EPP_CONFIG="deploy/config/sim-epp-kvcache-config.yaml"
 else
   DEFAULT_EPP_CONFIG="deploy/config/sim-epp-config.yaml"
 fi
