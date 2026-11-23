@@ -61,3 +61,4 @@ config/charts/*/Chart.lock
 test/perf/__pycache__/
 test/perf/results/
 data/
+bench/results/
